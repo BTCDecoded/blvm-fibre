@@ -1,6 +1,5 @@
-# On every push to main: patch-bump version, build Linux/Windows binaries, publish a
-# GitHub Release, then commit Cargo.toml (with [patch.crates-io] preserved) + Cargo.lock +
-# module.toml on main ([skip ci]). Release binaries use a stripped manifest artifact.
+# GitHub Release with platform artifacts; finalize bumps [package].version + module.toml on main
+# ([skip ci]). Builds use the repo Cargo.toml including [patch.crates-io] (git pins for blvm-node / blvm-sdk).
 name: Release
 
 on:
@@ -43,7 +42,9 @@ jobs:
           fetch-depth: 0
 
       - name: Install Rust (for lockfile)
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.88.0
 
       - name: Fetch tags (avoid releasing an existing tag)
         run: git fetch --tags origin
@@ -76,8 +77,12 @@ jobs:
             fi
             MAJOR=$(echo "$CURRENT" | cut -d. -f1)
             MINOR=$(echo "$CURRENT" | cut -d. -f2)
-            PATCH=$(echo "$CURRENT" | cut -d. -f3)
-            PATCH=$((PATCH + 1))
+            CURRENT_PATCH=$(echo "$CURRENT" | cut -d. -f3)
+            TAGGED_VERSIONS=$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' | sed 's/^v//' | sed 's/-unverified$//' | sed 's/\^{}$//')
+            SAME_LINE_PATCHES=$(printf '%s\n' "$TAGGED_VERSIONS" | grep -E "^${MAJOR}\\.${MINOR}\\.[0-9]+$" | cut -d. -f3 || true)
+            MAX_PATCH=$(printf '%s\n' $SAME_LINE_PATCHES "$CURRENT_PATCH" | grep -E '^[0-9]+$' | sort -n | tail -1)
+            [ -n "$MAX_PATCH" ] || MAX_PATCH="$CURRENT_PATCH"
+            PATCH=$((MAX_PATCH + 1))
             VERSION="${MAJOR}.${MINOR}.${PATCH}"
           fi
 
@@ -95,13 +100,10 @@ jobs:
               MINOR=$(echo "$VERSION" | cut -d. -f2)
               PATCH=$(echo "$VERSION" | cut -d. -f3)
             fi
-            echo "Tag v${VERSION} exists, scanning for next free patch..."
-            for _ in $(seq 1 30); do
+            echo "Tag v${VERSION} exists, bumping patch until free..."
+            while ! tag_free "$VERSION"; do
               PATCH=$((PATCH + 1))
               VERSION="${MAJOR}.${MINOR}.${PATCH}"
-              if tag_free "$VERSION"; then
-                break
-              fi
             done
           fi
 
@@ -109,7 +111,7 @@ jobs:
           echo "version_tag=v${VERSION}" >> "$GITHUB_OUTPUT"
           echo "Releasing ${VERSION} (tag v${VERSION})"
 
-      - name: Build crates.io release manifests (strip [patch.crates-io])
+      - name: Bump package version and regenerate lockfile
         env:
           VERSION_PLAIN: ${{ steps.plan.outputs.version }}
         shell: bash
@@ -123,14 +125,7 @@ jobs:
               next
             }
             { print }
-          ' Cargo.toml > Cargo.bumped.toml
-          python3 - <<'PY'
-          import re, pathlib
-          text = pathlib.Path("Cargo.bumped.toml").read_text()
-          text = re.sub(r"\n\[patch\.crates-io\].*", "", text, flags=re.DOTALL)
-          pathlib.Path("Cargo.toml").write_text(text)
-          pathlib.Path("Cargo.bumped.toml").unlink(missing_ok=True)
-          PY
+          ' Cargo.toml > Cargo.toml.tmp && mv Cargo.toml.tmp Cargo.toml
           rm -f Cargo.lock
           cargo generate-lockfile
 
@@ -175,9 +170,6 @@ jobs:
         with:
           name: release-cargo-manifests
 
-      - name: Strip [patch.crates-io] for crates.io-only build
-        uses: BTCDecoded/rust-ci/strip-patch-crates-io@main
-
       - name: Job-local HOME (Linux; avoid rustc ETXTBSY on shared rustup)
         if: runner.os == 'Linux'
         run: |
@@ -212,8 +204,9 @@ jobs:
 
       - name: Install Rust (Windows)
         if: runner.os == 'Windows'
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: 1.88.0
           targets: ${{ matrix.target }}
 
       - name: Add Rust target (pinned toolchain, Linux)
