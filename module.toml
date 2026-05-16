@@ -17,7 +17,5 @@ udp_follow_node_tcp_plus_one = "If true, listen on node P2P TCP port + 1 (MODULE
 enabled = "Enable FIBRE when true (from [fibre] / FibreConfig)"
 fibre_peers = "Optional [[fibre_peers]] tables: peer_id + udp_addr (host:port) for outbound send"
 register_peers_from_p2p = "If true, subscribe to CompanionUdpPeer* and register NODE_FIBRE peers from P2P (UDP = peer TCP port + 1)"
-[downloads]
-x86_64-linux  = { url = "https://github.com/BTCDecoded/blvm-fibre/releases/download/v0.1.2/blvm-fibre-x86_64-linux", sha256 = "ce333b4b167d42abeb8dd04a4f36668b1ea7cd95428bf97e7c49c7d84a8926c5" }
-aarch64-linux = { url = "https://github.com/BTCDecoded/blvm-fibre/releases/download/v0.1.2/blvm-fibre-aarch64-linux", sha256 = "207315ba656e267aa884f43e9a86c235b8a2304d9d4bf2db4dc7f26dc5614aa5" }
-x86_64-windows= { url = "https://github.com/BTCDecoded/blvm-fibre/releases/download/v0.1.2/blvm-fibre-x86_64-windows.exe", sha256 = "7d9b832e0108e35efb022a1500682d94a67f1f399204a9b809f5a5f96db432b4" }
+
+# Written by release CI — do not edit by hand.
