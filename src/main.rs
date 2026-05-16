@@ -39,10 +39,7 @@ async fn main() -> Result<()> {
                 match SocketAddr::from_str(&p.udp_addr) {
                     Ok(addr) => {
                         relay.register_fibre_peer(p.peer_id.clone(), Some(addr));
-                        info!(
-                            "blvm-fibre: static peer {} -> {}",
-                            p.peer_id, p.udp_addr
-                        );
+                        info!("blvm-fibre: static peer {} -> {}", p.peer_id, p.udp_addr);
                     }
                     Err(e) => {
                         warn!(
@@ -53,14 +50,9 @@ async fn main() -> Result<()> {
                 }
             }
 
-            let chunk_rx = relay
-                .initialize_udp(udp_addr)
-                .await
-                .map_err(|e| {
-                    blvm_node::module::traits::ModuleError::Other(format!(
-                        "blvm-fibre: UDP init: {e}"
-                    ))
-                })?;
+            let chunk_rx = relay.initialize_udp(udp_addr).await.map_err(|e| {
+                blvm_node::module::traits::ModuleError::Other(format!("blvm-fibre: UDP init: {e}"))
+            })?;
 
             let relay = Arc::new(Mutex::new(relay));
             let api_ingress = Arc::clone(&node_api);

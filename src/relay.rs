@@ -1068,32 +1068,28 @@ pub fn start_chunk_processor(
             };
 
             match result {
-                Ok(Some(block)) => {
-                    match bincode::serialize(&block) {
-                        Ok(block_data) => {
-                            match node_api.queue_received_block_bytes(block_data).await {
-                                Ok(()) => {
-                                    info!(
-                                        "FIBRE block assembled from {} and queued on node",
-                                        peer_addr
-                                    );
-                                }
-                                Err(e) => {
-                                    warn!(
-                                        "FIBRE: queue_received_block_bytes from {}: {}",
-                                        peer_addr, e
-                                    );
-                                }
-                            }
+                Ok(Some(block)) => match bincode::serialize(&block) {
+                    Ok(block_data) => match node_api.queue_received_block_bytes(block_data).await {
+                        Ok(()) => {
+                            info!(
+                                "FIBRE block assembled from {} and queued on node",
+                                peer_addr
+                            );
                         }
                         Err(e) => {
                             warn!(
-                                "FIBRE: Failed to serialize assembled block from {}: {}",
+                                "FIBRE: queue_received_block_bytes from {}: {}",
                                 peer_addr, e
                             );
                         }
+                    },
+                    Err(e) => {
+                        warn!(
+                            "FIBRE: Failed to serialize assembled block from {}: {}",
+                            peer_addr, e
+                        );
                     }
-                }
+                },
                 Ok(None) => {
                     // Block not yet complete, waiting for more chunks
                     debug!("FIBRE block assembly in progress from {}", peer_addr);

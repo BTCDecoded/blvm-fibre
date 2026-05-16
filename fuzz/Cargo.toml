@@ -13,14 +13,9 @@ blvm-fibre = { path = ".." }
 libfuzzer-sys = "0.4"
 
 [patch.crates-io]
-blvm-primitives = { path = "../../blvm-primitives" }
-blvm-protocol = { path = "../../blvm-protocol" }
-blvm-consensus = { path = "../../blvm-consensus" }
-blvm-secp256k1 = { path = "../../blvm-secp256k1" }
-blvm-spec-lock = { path = "../../blvm-spec-lock" }
-blvm-muhash = { path = "../../blvm-muhash" }
-blvm-node = { path = "../../blvm-node" }
-blvm-sdk = { path = "../../blvm-sdk" }
+blvm-node = { git = "https://github.com/BTCDecoded/blvm-node", branch = "main" }
+blvm-sdk = { git = "https://github.com/BTCDecoded/blvm-sdk", branch = "main" }
+blvm-sdk-macros = { git = "https://github.com/BTCDecoded/blvm-sdk", branch = "main", subdirectory = "crates/blvm-sdk-macros" }
 
 [profile.release]
 opt-level = 3

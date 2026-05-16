@@ -1,9 +1,9 @@
 //! `NewBlock` / `BlockMined` → FIBRE send; received chunks → `NodeAPI::queue_received_block_bytes`.
 
 use blvm_node::module::ipc::protocol::{EventMessage, EventPayload};
+use blvm_protocol::Hash;
 use blvm_sdk::module::prelude::*;
 use blvm_sdk_macros::module;
-use blvm_protocol::Hash;
 use std::net::SocketAddr;
 use std::str::FromStr;
 use std::sync::Arc;

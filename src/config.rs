@@ -88,14 +88,12 @@ impl FibreModuleConfig {
             })?;
             let ip_s = std::env::var("MODULE_CONFIG_NODE_P2P_LISTEN_IP")
                 .unwrap_or_else(|_| String::from("0.0.0.0"));
-            let ip: IpAddr =
-                ip_s.parse()
-                    .map_err(|e| {
-                        Error::new(
-                            ErrorKind::InvalidInput,
-                            format!("blvm-fibre: invalid MODULE_CONFIG_NODE_P2P_LISTEN_IP: {e}"),
-                        )
-                    })?;
+            let ip: IpAddr = ip_s.parse().map_err(|e| {
+                Error::new(
+                    ErrorKind::InvalidInput,
+                    format!("blvm-fibre: invalid MODULE_CONFIG_NODE_P2P_LISTEN_IP: {e}"),
+                )
+            })?;
             let udp_port = tcp_port.saturating_add(1);
             return Ok(SocketAddr::new(ip, udp_port));
         }
@@ -116,7 +114,10 @@ impl FibreModuleConfig {
     pub fn to_context_map(&self) -> HashMap<String, String> {
         let mut m = HashMap::new();
         m.insert("blvm-fibre.udp_bind".to_string(), self.udp_bind.clone());
-        m.insert("blvm-fibre.enabled".to_string(), self.fibre.enabled.to_string());
+        m.insert(
+            "blvm-fibre.enabled".to_string(),
+            self.fibre.enabled.to_string(),
+        );
         m.insert(
             "blvm-fibre.fec_parity_ratio".to_string(),
             format!("{}", self.fibre.fec_parity_ratio),

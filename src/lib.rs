@@ -7,6 +7,4 @@ pub mod wire;
 
 pub use config::{FibreModuleConfig, FibrePeerEntry};
 pub use module::FibreModule;
-pub use relay::{
-    start_chunk_processor, FibreConfig, FibreError, FibreRelay, FibreStats,
-};
+pub use relay::{start_chunk_processor, FibreConfig, FibreError, FibreRelay, FibreStats};
