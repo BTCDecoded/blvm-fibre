@@ -70,6 +70,26 @@ jobs:
         with:
           operation: restore
 
+      - name: Repair Cargo registry (incomplete unicode-width)
+        shell: bash
+        run: |
+          set -euo pipefail
+          reg_src="${HOME}/.cargo/registry/src"
+          reg_cache="${HOME}/.cargo/registry/cache"
+          [ -d "$reg_src" ] || exit 0
+          find "$reg_src" -path '*/unicode-width-*/src/lib.rs' 2>/dev/null | while IFS= read -r lib; do
+            [ -n "$lib" ] || continue
+            src_dir=$(dirname "$lib")
+            if [[ ! -f "$src_dir/tables.rs" ]]; then
+              crate_root=$(dirname "$src_dir")
+              echo "Removing incomplete unicode-width tree: $crate_root"
+              rm -rf "$crate_root"
+            fi
+          done
+          if [[ -d "$reg_cache" ]]; then
+            find "$reg_cache" -name 'unicode-width-*.crate' -delete 2>/dev/null || true
+          fi
+
       - name: Install Rust (Linux self-hosted)
         uses: BTCDecoded/rust-ci/install-rust-toolchain@main
 
@@ -153,6 +173,27 @@ jobs:
         uses: BTCDecoded/rust-ci/runner-cargo-cache@main
         with:
           operation: restore
+
+      - name: Repair Cargo registry (incomplete unicode-width)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          reg_src="${HOME}/.cargo/registry/src"
+          reg_cache="${HOME}/.cargo/registry/cache"
+          [ -d "$reg_src" ] || exit 0
+          find "$reg_src" -path '*/unicode-width-*/src/lib.rs' 2>/dev/null | while IFS= read -r lib; do
+            [ -n "$lib" ] || continue
+            src_dir=$(dirname "$lib")
+            if [[ ! -f "$src_dir/tables.rs" ]]; then
+              crate_root=$(dirname "$src_dir")
+              echo "Removing incomplete unicode-width tree: $crate_root"
+              rm -rf "$crate_root"
+            fi
+          done
+          if [[ -d "$reg_cache" ]]; then
+            find "$reg_cache" -name 'unicode-width-*.crate' -delete 2>/dev/null || true
+          fi
 
       - name: Install Rust (Linux self-hosted)
         if: runner.os == 'Linux'
