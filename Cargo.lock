@@ -260,7 +260,7 @@ dependencies = [
 
 [[package]]
 name = "blvm-fibre"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "anyhow",
  "bincode",
@@ -297,7 +297,7 @@ dependencies = [
 [[package]]
 name = "blvm-node"
 version = "0.1.11"
-source = "git+https://github.com/BTCDecoded/blvm-node?branch=main#a299bd84ca1a25b00c2cbf52c20f476be9c353b1"
+source = "git+https://github.com/BTCDecoded/blvm-node?branch=main#f5d6c0127bbe922e4877052c7583e9be84a3e3fd"
 dependencies = [
  "aes-gcm",
  "anyhow",

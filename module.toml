@@ -1,5 +1,5 @@
 name = "blvm-fibre"
-version = "0.1.2"
+version = "0.1.3"
 entry_point = "blvm-fibre"
 
 description = "FIBRE (Fast Internet Bitcoin Relay Engine) UDP/FEC block transport for blvm-node"
