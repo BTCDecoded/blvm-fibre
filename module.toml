@@ -1,5 +1,5 @@
 name = "blvm-fibre"
-version = "0.1.0"
+version = "0.1.1"
 entry_point = "blvm-fibre"
 
 description = "FIBRE (Fast Internet Bitcoin Relay Engine) UDP/FEC block transport for blvm-node"
@@ -17,3 +17,7 @@ udp_follow_node_tcp_plus_one = "If true, listen on node P2P TCP port + 1 (MODULE
 enabled = "Enable FIBRE when true (from [fibre] / FibreConfig)"
 fibre_peers = "Optional [[fibre_peers]] tables: peer_id + udp_addr (host:port) for outbound send"
 register_peers_from_p2p = "If true, subscribe to CompanionUdpPeer* and register NODE_FIBRE peers from P2P (UDP = peer TCP port + 1)"
+[downloads]
+x86_64-linux  = { url = "https://github.com/BTCDecoded/blvm-fibre/releases/download/v0.1.1/blvm-fibre-x86_64-linux", sha256 = "7216f60f508ff0e82c161e902726deb81cfaba2ee0e10d08c4e0c2e893a9ec2e" }
+aarch64-linux = { url = "https://github.com/BTCDecoded/blvm-fibre/releases/download/v0.1.1/blvm-fibre-aarch64-linux", sha256 = "70faab9656d1d82fe12f8a07de932616e167f8df912083ac0df9ae163edba347" }
+x86_64-windows= { url = "https://github.com/BTCDecoded/blvm-fibre/releases/download/v0.1.1/blvm-fibre-x86_64-windows.exe", sha256 = "b3d4d1108da711aad667622ce0525179012d7f1369dc72b11188236b004e6271" }
