@@ -73,6 +73,15 @@ jobs:
       - name: Install Rust (Linux self-hosted)
         uses: BTCDecoded/rust-ci/install-rust-toolchain@main
 
+      # Self-hosted images may pin rustc without rustfmt/clippy components (e.g. 1.88.0 toolchain).
+      - name: Add rustfmt and clippy for active toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          REL=$(rustc -vV | awk '/^release:/{print $2}')
+          HOST=$(rustc -vV | awk '/^host:/{print $2}')
+          rustup component add rustfmt clippy --toolchain "${REL}-${HOST}"
+
       - name: Regenerate lockfile
         shell: bash
         run: |

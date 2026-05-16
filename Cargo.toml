@@ -20,8 +20,8 @@ name = "blvm_fibre"
 path = "src/lib.rs"
 
 [dependencies]
-# `open_module_db` / ModuleDb needs Sled (or TidesDB); crates.io blvm-sdk 0.1.5 `node` lacks blvm-node/sled.
-blvm-node = { version = ">=0.1, <1", features = ["sled"] }
+# blvm-node: default-features false + `node` feature from blvm-sdk supplies the usual module stack without rocksdb.
+blvm-node = { version = ">=0.1, <1", default-features = false }
 blvm-sdk = { version = ">=0.1, <1", default-features = false, features = ["node"] }
 blvm-sdk-macros = { version = ">=0.1, <1" }
 blvm-protocol = { version = ">=0.1, <1" }
