@@ -235,9 +235,9 @@ dependencies = [
 
 [[package]]
 name = "blvm-consensus"
-version = "0.1.17"
+version = "0.1.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cd49b6cc5e447474ec7c082ce152e76970b60b3bb5772041d098e92d98259949"
+checksum = "973897b24923f900bf632fcb78614fbb9c6019159c1c79c520bd0e903d6384a8"
 dependencies = [
  "bitcoin_hashes",
  "blvm-primitives",
@@ -265,7 +265,7 @@ dependencies = [
  "anyhow",
  "bincode",
  "blvm-node",
- "blvm-protocol",
+ "blvm-protocol 0.1.8",
  "blvm-sdk",
  "blvm-sdk-macros",
  "crc32fast",
@@ -297,7 +297,6 @@ dependencies = [
 [[package]]
 name = "blvm-node"
 version = "0.1.11"
-source = "git+https://github.com/BTCDecoded/blvm-node?branch=main#f5d6c0127bbe922e4877052c7583e9be84a3e3fd"
 dependencies = [
  "aes-gcm",
  "anyhow",
@@ -307,7 +306,7 @@ dependencies = [
  "bitflags 2.11.1",
  "blvm-consensus",
  "blvm-muhash",
- "blvm-protocol",
+ "blvm-protocol 0.1.11",
  "blvm-secp256k1",
  "blvm-spec-lock",
  "bs58",
@@ -355,9 +354,9 @@ dependencies = [
 
 [[package]]
 name = "blvm-primitives"
-version = "0.1.14"
+version = "0.1.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0b01bb683e49e71e6b67d3f7d59ebb0fbb481f0a6d858e2b171d49be0db7084b"
+checksum = "a3fc17855620b5c96b3c4508ff302e8a768e31e1c6571403f6c6a48692b4661f"
 dependencies = [
  "bitcoin_hashes",
  "ripemd",
@@ -371,9 +370,28 @@ dependencies = [
 
 [[package]]
 name = "blvm-protocol"
-version = "0.1.10"
+version = "0.1.8"
+dependencies = [
+ "anyhow",
+ "bech32",
+ "bincode",
+ "blvm-consensus",
+ "blvm-secp256k1",
+ "hex",
+ "ripemd",
+ "serde",
+ "serde_bytes",
+ "serde_json",
+ "sha2",
+ "thiserror",
+ "tracing",
+]
+
+[[package]]
+name = "blvm-protocol"
+version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "87b698249015b7df794aaee9b81fc07ef2a5b2fde7158da0bbb83c9d0138d974"
+checksum = "7cafe9b004448a25996d0ae9f052c81e368ea9085bce77db61b151899019f514"
 dependencies = [
  "anyhow",
  "bech32",
@@ -399,7 +417,6 @@ dependencies = [
 [[package]]
 name = "blvm-sdk"
 version = "0.1.0"
-source = "git+https://github.com/BTCDecoded/blvm-sdk?branch=main#b54dbab3367f7457756ca58fdd4932eaf8b342a3"
 dependencies = [
  "anyhow",
  "base64 0.21.5",
@@ -425,7 +442,6 @@ dependencies = [
 [[package]]
 name = "blvm-sdk-macros"
 version = "0.1.0"
-source = "git+https://github.com/BTCDecoded/blvm-sdk?branch=main#b54dbab3367f7457756ca58fdd4932eaf8b342a3"
 dependencies = [
  "proc-macro2",
  "quote",

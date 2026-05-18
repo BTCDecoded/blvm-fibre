@@ -20,11 +20,11 @@ name = "blvm_fibre"
 path = "src/lib.rs"
 
 [dependencies]
-# blvm-node: default-features false + `node` feature from blvm-sdk supplies the usual module stack without rocksdb.
-blvm-node = { version = ">=0.1, <1", default-features = false }
-blvm-sdk = { version = ">=0.1, <1", default-features = false, features = ["node"] }
-blvm-sdk-macros = { version = ">=0.1, <1" }
-blvm-protocol = { version = ">=0.1, <1" }
+# Monorepo: path deps keep one `blvm-node` / `blvm-sdk` in the graph with sibling crates (see blvm-bench).
+blvm-node = { path = "../blvm-node", default-features = false }
+blvm-sdk = { path = "../blvm-sdk", default-features = false, features = ["node"] }
+blvm-sdk-macros = { path = "../blvm-sdk/crates/blvm-sdk-macros" }
+blvm-protocol = { path = "../blvm-protocol" }
 crc32fast = "=1.3"
 # Native TLS via blvm-node pulls openssl-sys; `vendored` avoids missing target OpenSSL (e.g. aarch64 cross).
 openssl = { version = "0.10", features = ["vendored"] }
@@ -44,12 +44,3 @@ sha2 = "=0.10.9"
 
 [dev-dependencies]
 tokio = { version = "1.48", features = ["rt-multi-thread", "macros", "time"] }
-
-# FIBRE hooks are on `main` before every crates.io semver bump. Patch integrates CI, Windows, and
-# solo checkouts without sibling paths. For local monorepo path overrides, use `.cargo/config.toml`
-# (see Cargo book: configuration inheritance).
-[patch.crates-io]
-blvm-node = { git = "https://github.com/BTCDecoded/blvm-node", branch = "main" }
-blvm-sdk = { git = "https://github.com/BTCDecoded/blvm-sdk", branch = "main" }
-# Keep proc-macros in lockstep with patched blvm-sdk + blvm-node (CompanionUdpPeer*, etc.).
-blvm-sdk-macros = { git = "https://github.com/BTCDecoded/blvm-sdk", branch = "main", subdirectory = "crates/blvm-sdk-macros" }
