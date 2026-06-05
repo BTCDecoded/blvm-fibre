@@ -30,7 +30,7 @@ jobs:
       - name: Disk check
         uses: BTCDecoded/rust-ci/runner-disk-guard@main
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - id: cache
         name: Cache key
@@ -52,7 +52,7 @@ jobs:
         !contains(github.event.head_commit.message, '[ci skip]') &&
         !contains(github.event.head_commit.message, '[no ci]')))
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Job-local HOME (Linux; avoid rustc ETXTBSY on shared rustup installs)
         run: |
@@ -133,7 +133,7 @@ jobs:
             use_cross: false
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Job-local HOME (Linux; avoid rustc ETXTBSY on shared rustup installs)
         if: runner.os == 'Linux'
