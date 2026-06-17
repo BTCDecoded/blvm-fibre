@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
-    branches: [main]
+    branches: [main, develop]
 
 permissions:
   contents: read
@@ -32,6 +32,9 @@ jobs:
 
       - uses: actions/checkout@v6
 
+      - name: Strip [patch.crates-io] for crates.io-only CI
+        uses: BTCDecoded/rust-ci/strip-patch-crates-io@main
+
       - id: cache
         name: Cache key
         run: |
@@ -54,6 +57,9 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Strip [patch.crates-io] for crates.io-only CI
+        uses: BTCDecoded/rust-ci/strip-patch-crates-io@main
+
       - name: Job-local HOME (Linux; avoid rustc ETXTBSY on shared rustup installs)
         run: |
           mkdir -p "${RUNNER_TEMP}/blvm-fibre-ci-home"
@@ -72,6 +78,8 @@ jobs:
 
       - name: Install Rust (Linux self-hosted)
         uses: BTCDecoded/rust-ci/install-rust-toolchain@main
+        with:
+          toolchain: 1.88.0
 
       # Self-hosted images may pin rustc without rustfmt/clippy components (e.g. 1.88.0 toolchain).
       - name: Add rustfmt and clippy for active toolchain
@@ -92,7 +100,7 @@ jobs:
         run: cargo fmt --all -- --check
 
       - name: clippy
-        run: cargo clippy --all-targets
+        run: cargo clippy --all-targets -- -D warnings
 
       - name: test
         run: cargo test --all-targets
@@ -135,6 +143,9 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Strip [patch.crates-io] for crates.io-only CI
+        uses: BTCDecoded/rust-ci/strip-patch-crates-io@main
+
       - name: Job-local HOME (Linux; avoid rustc ETXTBSY on shared rustup installs)
         if: runner.os == 'Linux'
         run: |
@@ -157,6 +168,8 @@ jobs:
       - name: Install Rust (Linux self-hosted)
         if: runner.os == 'Linux'
         uses: BTCDecoded/rust-ci/install-rust-toolchain@main
+        with:
+          toolchain: 1.88.0
 
       - name: Install Rust (Windows)
         if: runner.os == 'Windows'

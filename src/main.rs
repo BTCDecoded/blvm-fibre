@@ -1,7 +1,7 @@
 //! blvm-fibre — FIBRE UDP/FEC relay (outbound on `NewBlock`, inbound via `queue_received_block_bytes`).
 
 use anyhow::Result;
-use blvm_fibre::{start_chunk_processor, FibreModule, FibreModuleConfig, FibreRelay};
+use blvm_fibre::{FibreModule, FibreModuleConfig, FibreRelay, start_chunk_processor};
 use blvm_sdk::module::{ModuleBootstrap, ModuleDb};
 use std::net::SocketAddr;
 use std::str::FromStr;

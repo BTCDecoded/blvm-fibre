@@ -3,13 +3,13 @@
 //! Wire types live in [`crate::wire`]. Assembled blocks are delivered to the node via
 //! [`NodeAPI::queue_received_block_bytes`].
 
-use crate::wire::{FecChunk, FibreCapabilities, FibreProtocolError, FIBRE_MAGIC};
+use crate::wire::{FIBRE_MAGIC, FecChunk, FibreCapabilities, FibreProtocolError};
 use blvm_node::module::traits::NodeAPI;
 use blvm_protocol::{Block, Hash};
 
 // Re-export FibreConfig for use in config module
 pub use crate::wire::FibreConfig;
-use reed_solomon_erasure::{galois_8::Field, ReedSolomon};
+use reed_solomon_erasure::{ReedSolomon, galois_8::Field};
 use sha2::Digest;
 use std::collections::HashMap;
 use std::net::SocketAddr;
@@ -138,7 +138,7 @@ impl FecEncoder {
         // Pad present shards only. Missing shards stay `None` so `reed-solomon-erasure`
         // `reconstruct` treats them as erasures (zero-filled `Some` would corrupt recovery).
         for shard in &mut shard_vec {
-            if let Some(ref mut s) = shard {
+            if let Some(s) = shard {
                 if s.len() < self.shard_size {
                     s.resize(self.shard_size, 0);
                 }

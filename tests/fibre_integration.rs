@@ -1,15 +1,15 @@
 //! Integration and wire tests for **`blvm-fibre`** (moved from `blvm-node` / `blvm-protocol`).
 
+use blvm_fibre::FibreRelay;
 use blvm_fibre::wire::{
-    FecChunk, FibreCapabilities, FibreConfig, FibreProtocolError, DEFAULT_SHARD_SIZE, FIBRE_MAGIC,
+    DEFAULT_SHARD_SIZE, FIBRE_MAGIC, FecChunk, FibreCapabilities, FibreConfig, FibreProtocolError,
     HEADER_SIZE, MAX_DATA_SIZE,
 };
-use blvm_fibre::FibreRelay;
 use blvm_protocol::{Block, BlockHeader};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tokio::time::{sleep, Duration};
+use tokio::time::{Duration, sleep};
 
 fn create_test_block() -> Block {
     Block {
