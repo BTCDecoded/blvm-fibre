@@ -56,7 +56,7 @@ async fn main() -> Result<()> {
 
             let relay = Arc::new(Mutex::new(relay));
             let api_ingress = Arc::clone(&node_api);
-            let _ = start_chunk_processor(Arc::clone(&relay), chunk_rx, api_ingress);
+            let _chunk_processor = start_chunk_processor(Arc::clone(&relay), chunk_rx, api_ingress);
 
             info!("blvm-fibre: listening UDP {}", udp_addr);
 

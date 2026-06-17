@@ -137,11 +137,9 @@ impl FecEncoder {
 
         // Pad present shards only. Missing shards stay `None` so `reed-solomon-erasure`
         // `reconstruct` treats them as erasures (zero-filled `Some` would corrupt recovery).
-        for shard in &mut shard_vec {
-            if let Some(s) = shard {
-                if s.len() < self.shard_size {
-                    s.resize(self.shard_size, 0);
-                }
+        for s in shard_vec.iter_mut().flatten() {
+            if s.len() < self.shard_size {
+                s.resize(self.shard_size, 0);
             }
         }
 
@@ -217,12 +215,12 @@ struct UdpTransport {
 }
 
 struct UdpConnection {
-    peer_addr: SocketAddr,
+    _peer_addr: SocketAddr,
     last_seen: Instant,
     /// Outgoing sequence number
     out_sequence: u64,
     /// Incoming sequence number (for duplicate detection)
-    in_sequence: u64,
+    _in_sequence: u64,
     /// Pending chunks awaiting acknowledgment
     pending_chunks: HashMap<u64, PendingChunk>,
 }
@@ -261,6 +259,7 @@ impl UdpTransport {
     }
 
     /// Send FEC chunk to peer with retry tracking
+    #[allow(dead_code)]
     async fn send_chunk(&self, peer: SocketAddr, chunk: FecChunk) -> Result<(), FibreError> {
         let packet = chunk
             .serialize()
@@ -283,10 +282,10 @@ impl UdpTransport {
         // Note: For FIBRE, we rely on FEC for reliability, but we can track for metrics
         let mut connections = self.connections.lock().await;
         let conn = connections.entry(peer).or_insert_with(|| UdpConnection {
-            peer_addr: peer,
+            _peer_addr: peer,
             last_seen: Instant::now(),
             out_sequence: 0,
-            in_sequence: 0,
+            _in_sequence: 0,
             pending_chunks: HashMap::new(),
         });
         conn.last_seen = Instant::now();
@@ -308,6 +307,7 @@ impl UdpTransport {
     }
 
     /// Remove pending chunk (called when chunk is acknowledged or block is complete)
+    #[allow(dead_code)]
     async fn remove_pending_chunk(&self, peer: SocketAddr, sequence: u64) {
         let mut connections = self.connections.lock().await;
         if let Some(conn) = connections.get_mut(&peer) {
@@ -406,6 +406,7 @@ impl UdpTransport {
     }
 
     /// Receive chunk from network
+    #[allow(dead_code)]
     async fn recv_chunk(&self) -> Result<(SocketAddr, FecChunk), FibreError> {
         let mut buffer = vec![0u8; crate::wire::MAX_PACKET_SIZE];
 
@@ -438,10 +439,10 @@ impl UdpTransport {
                         {
                             let mut conns = connections.lock().await;
                             let conn = conns.entry(peer_addr).or_insert_with(|| UdpConnection {
-                                peer_addr,
+                                _peer_addr: peer_addr,
                                 last_seen: Instant::now(),
                                 out_sequence: 0,
-                                in_sequence: 0,
+                                _in_sequence: 0,
                                 pending_chunks: HashMap::new(),
                             });
                             conn.last_seen = Instant::now();
@@ -754,10 +755,10 @@ impl FibreRelay {
             // Update connection state (separate lock for minimal contention)
             let mut conns = connections.lock().await;
             let conn = conns.entry(udp_addr).or_insert_with(|| UdpConnection {
-                peer_addr: udp_addr,
+                _peer_addr: udp_addr,
                 last_seen: Instant::now(),
                 out_sequence: 0,
-                in_sequence: 0,
+                _in_sequence: 0,
                 pending_chunks: HashMap::new(),
             });
             conn.last_seen = Instant::now();
@@ -765,8 +766,7 @@ impl FibreRelay {
 
             if send_errors > 0 {
                 Err(FibreError::UdpError(format!(
-                    "Failed to send {} packets",
-                    send_errors
+                    "Failed to send {send_errors} packets"
                 )))
             } else {
                 Ok(())
@@ -845,19 +845,18 @@ impl FibreRelay {
 
         // Get or create assembly and add chunk
         let should_reconstruct = {
-            if !self.receiving_blocks.contains_key(&block_hash) {
+            if let std::collections::hash_map::Entry::Vacant(e) =
+                self.receiving_blocks.entry(block_hash)
+            {
                 let fec_encoder = FecEncoder::new(data_shards, parity_shards, shard_size)?;
-                self.receiving_blocks.insert(
-                    block_hash,
-                    BlockAssembly {
-                        block_hash: chunk.block_hash,
-                        received_chunks: HashMap::new(),
-                        total_chunks: chunk.total_chunks,
-                        data_chunks: chunk.data_chunks,
-                        received_at: Instant::now(),
-                        fec_encoder,
-                    },
-                );
+                e.insert(BlockAssembly {
+                    block_hash: chunk.block_hash,
+                    received_chunks: HashMap::new(),
+                    total_chunks: chunk.total_chunks,
+                    data_chunks: chunk.data_chunks,
+                    received_at: Instant::now(),
+                    fec_encoder,
+                });
             }
 
             let assembly = match self.receiving_blocks.get_mut(&block_hash) {
