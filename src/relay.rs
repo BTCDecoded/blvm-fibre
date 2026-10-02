@@ -210,8 +210,6 @@ struct UdpTransport {
     local_addr: SocketAddr,
     /// Active UDP connections (peer_addr -> connection state)
     connections: Arc<Mutex<HashMap<SocketAddr, UdpConnection>>>,
-    /// Configuration
-    config: UdpTransportConfig,
 }
 
 struct UdpConnection {
@@ -254,7 +252,6 @@ impl UdpTransport {
             socket: Arc::new(socket),
             local_addr,
             connections: Arc::new(Mutex::new(HashMap::new())),
-            config,
         })
     }
 
