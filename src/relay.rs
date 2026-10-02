@@ -258,63 +258,6 @@ impl UdpTransport {
         })
     }
 
-    /// Send FEC chunk to peer with retry tracking
-    #[allow(dead_code)]
-    async fn send_chunk(&self, peer: SocketAddr, chunk: FecChunk) -> Result<(), FibreError> {
-        let packet = chunk
-            .serialize()
-            .map_err(|e| FibreError::UdpError(format!("Failed to serialize chunk: {e}")))?;
-
-        if packet.len() > crate::wire::MAX_PACKET_SIZE {
-            return Err(FibreError::UdpError(format!(
-                "Packet too large: {} bytes",
-                packet.len()
-            )));
-        }
-
-        // Send packet
-        self.socket
-            .send_to(&packet, peer)
-            .await
-            .map_err(|e| FibreError::UdpError(format!("Failed to send UDP packet: {e}")))?;
-
-        // Track pending chunk for retry if needed
-        // Note: For FIBRE, we rely on FEC for reliability, but we can track for metrics
-        let mut connections = self.connections.lock().await;
-        let conn = connections.entry(peer).or_insert_with(|| UdpConnection {
-            _peer_addr: peer,
-            last_seen: Instant::now(),
-            out_sequence: 0,
-            _in_sequence: 0,
-            pending_chunks: HashMap::new(),
-        });
-        conn.last_seen = Instant::now();
-        conn.out_sequence = conn.out_sequence.wrapping_add(1);
-
-        // Store pending chunk (for potential retry, though FEC handles most packet loss)
-        if self.config.max_retries > 0 {
-            conn.pending_chunks.insert(
-                chunk.sequence,
-                PendingChunk {
-                    chunk: chunk.clone(),
-                    sent_at: Instant::now(),
-                    retry_count: 0,
-                },
-            );
-        }
-
-        Ok(())
-    }
-
-    /// Remove pending chunk (called when chunk is acknowledged or block is complete)
-    #[allow(dead_code)]
-    async fn remove_pending_chunk(&self, peer: SocketAddr, sequence: u64) {
-        let mut connections = self.connections.lock().await;
-        if let Some(conn) = connections.get_mut(&peer) {
-            conn.pending_chunks.remove(&sequence);
-        }
-    }
-
     /// Start background task to handle retries and connection timeouts
     pub fn start_retry_handler(
         socket: Arc<UdpSocket>,
@@ -403,25 +346,6 @@ impl UdpTransport {
                 }
             }
         })
-    }
-
-    /// Receive chunk from network
-    #[allow(dead_code)]
-    async fn recv_chunk(&self) -> Result<(SocketAddr, FecChunk), FibreError> {
-        let mut buffer = vec![0u8; crate::wire::MAX_PACKET_SIZE];
-
-        let (len, peer_addr) = self
-            .socket
-            .recv_from(&mut buffer)
-            .await
-            .map_err(|e| FibreError::UdpError(format!("Failed to receive UDP packet: {e}")))?;
-
-        buffer.truncate(len);
-
-        let chunk = FecChunk::deserialize(&buffer)
-            .map_err(|e| FibreError::UdpError(format!("Failed to deserialize chunk: {e}")))?;
-
-        Ok((peer_addr, chunk))
     }
 
     /// Start background task to receive UDP packets and forward chunks via channel
