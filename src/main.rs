@@ -60,6 +60,15 @@ async fn main() -> Result<()> {
 
             info!("blvm-fibre: listening UDP {}", udp_addr);
 
+            node_api
+                .set_advertised_service_bits(blvm_node::network::protocol::NODE_FIBRE)
+                .await
+                .map_err(|e| {
+                    blvm_node::module::traits::ModuleError::Other(format!(
+                        "blvm-fibre: advertise NODE_FIBRE: {e}"
+                    ))
+                })?;
+
             let module = FibreModule::new(Arc::clone(&relay), config.register_peers_from_p2p);
             Ok((module.clone(), module))
         }

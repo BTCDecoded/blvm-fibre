@@ -1,5 +1,9 @@
 //! Integration and wire tests for **`blvm-fibre`** (moved from `blvm-node` / `blvm-protocol`).
 
+#[path = "recording_node_api.rs"]
+mod recording_node_api;
+
+use blvm_fibre::start_chunk_processor;
 use blvm_fibre::FibreRelay;
 use blvm_fibre::wire::{
     DEFAULT_SHARD_SIZE, FIBRE_MAGIC, FecChunk, FibreCapabilities, FibreConfig, FibreProtocolError,
@@ -409,4 +413,52 @@ fn test_fec_chunk_sequence_numbers() {
     let serialized2 = chunk2.serialize().unwrap();
     let deserialized2 = FecChunk::deserialize(&serialized2).unwrap();
     assert_eq!(deserialized2.sequence, u64::MAX);
+}
+
+#[tokio::test]
+async fn test_fibre_loopback_queues_assembled_block() {
+    let block = create_test_block();
+    let expected = bincode::serialize(&block).unwrap();
+    let api = Arc::new(recording_node_api::RecordingNodeApi::new());
+    let queued = Arc::clone(&api.queued);
+
+    let mut relay_b = FibreRelay::new();
+    let chunk_rx_b = relay_b
+        .initialize_udp("127.0.0.1:0".parse().unwrap())
+        .await
+        .unwrap();
+    let relay_b_addr = relay_b
+        .udp_local_addr()
+        .await
+        .expect("B should have UDP transport");
+    let relay_b = Arc::new(Mutex::new(relay_b));
+    let processor = start_chunk_processor(Arc::clone(&relay_b), chunk_rx_b, api);
+
+    let mut relay_a = FibreRelay::new();
+    relay_a
+        .initialize_udp("127.0.0.1:0".parse().unwrap())
+        .await
+        .unwrap();
+    relay_a.register_fibre_peer("node_b".to_string(), Some(relay_b_addr));
+    let encoded = relay_a.encode_block(block).unwrap();
+    relay_a.send_block("node_b", encoded).await.unwrap();
+
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(2);
+    let mut got: Option<Vec<Vec<u8>>> = None;
+    while tokio::time::Instant::now() < deadline {
+        let guard = queued.lock().expect("queue lock");
+        if !guard.is_empty() {
+            got = Some(guard.clone());
+            break;
+        }
+        drop(guard);
+        sleep(Duration::from_millis(20)).await;
+    }
+    processor.abort();
+
+    let got = got.expect("queue_received_block_bytes was not called");
+    assert_eq!(got.len(), 1, "assembled block should be queued once");
+    assert_eq!(got[0], expected);
+    let decoded: blvm_protocol::Block = bincode::deserialize(&got[0]).unwrap();
+    assert_eq!(decoded.header, create_test_block().header);
 }

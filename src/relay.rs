@@ -33,6 +33,8 @@ pub struct FibreRelay {
     udp_transport: Option<Arc<Mutex<UdpTransport>>>,
     /// Block assembly tracking (for receiving blocks)
     receiving_blocks: HashMap<Hash, BlockAssembly>,
+    /// Hashes already handed to the node. Later parity or duplicate chunks must not queue again.
+    assembled_blocks: std::collections::HashSet<Hash>,
     /// Sequence number generator
     sequence_counter: u64,
     /// Configuration
@@ -422,6 +424,7 @@ impl FibreRelay {
             fec_encoder: None,
             udp_transport: None,
             receiving_blocks: HashMap::new(),
+            assembled_blocks: std::collections::HashSet::new(),
             sequence_counter: 0,
             config: FibreConfig::default(),
             stats: Arc::new(Mutex::new(FibreStatsInternal {
@@ -448,6 +451,7 @@ impl FibreRelay {
             fec_encoder: None,
             udp_transport: None,
             receiving_blocks: HashMap::new(),
+            assembled_blocks: std::collections::HashSet::new(),
             sequence_counter: 0,
             config,
             stats: Arc::new(Mutex::new(FibreStatsInternal {
@@ -728,6 +732,9 @@ impl FibreRelay {
             let mut stats = self.stats.lock().await;
             stats.chunks_received += 1;
         }
+        if self.assembled_blocks.contains(&chunk.block_hash) {
+            return Ok(None);
+        }
         // Check max assemblies limit
         if self.receiving_blocks.len() >= self.config.max_assemblies {
             // Remove oldest incomplete assembly
@@ -864,6 +871,7 @@ impl FibreRelay {
                 hex::encode(block_hash_check)
             );
 
+            self.assembled_blocks.insert(block_hash_check);
             return Ok(Some(block));
         }
 
