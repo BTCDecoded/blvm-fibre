@@ -29,6 +29,12 @@ impl RecordingNodeApi {
     }
 }
 
+impl Default for RecordingNodeApi {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[async_trait]
 impl NodeAPI for RecordingNodeApi {
     async fn get_block(&self, _hash: &Hash) -> Result<Option<Block>, ModuleError> {

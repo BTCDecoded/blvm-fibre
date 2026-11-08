@@ -446,12 +446,13 @@ async fn test_fibre_loopback_queues_assembled_block() {
     let deadline = tokio::time::Instant::now() + Duration::from_secs(2);
     let mut got: Option<Vec<Vec<u8>>> = None;
     while tokio::time::Instant::now() < deadline {
-        let guard = queued.lock().expect("queue lock");
-        if !guard.is_empty() {
-            got = Some(guard.clone());
-            break;
+        {
+            let guard = queued.lock().expect("queue lock");
+            if !guard.is_empty() {
+                got = Some(guard.clone());
+                break;
+            }
         }
-        drop(guard);
         sleep(Duration::from_millis(20)).await;
     }
     processor.abort();
