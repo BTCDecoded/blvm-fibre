@@ -3,8 +3,8 @@
 #[path = "recording_node_api.rs"]
 mod recording_node_api;
 
-use blvm_fibre::start_chunk_processor;
 use blvm_fibre::FibreRelay;
+use blvm_fibre::start_chunk_processor;
 use blvm_fibre::wire::{
     DEFAULT_SHARD_SIZE, FIBRE_MAGIC, FecChunk, FibreCapabilities, FibreConfig, FibreProtocolError,
     HEADER_SIZE, MAX_DATA_SIZE,

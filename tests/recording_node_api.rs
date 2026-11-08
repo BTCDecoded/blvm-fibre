@@ -407,10 +407,7 @@ impl NodeAPI for RecordingNodeApi {
     }
 
     async fn queue_received_block_bytes(&self, block_bytes: Vec<u8>) -> Result<(), ModuleError> {
-        self.queued
-            .lock()
-            .expect("queue lock")
-            .push(block_bytes);
+        self.queued.lock().expect("queue lock").push(block_bytes);
         Ok(())
     }
 
