@@ -33,8 +33,8 @@ pub struct FibreRelay {
     udp_transport: Option<Arc<Mutex<UdpTransport>>>,
     /// Block assembly tracking (for receiving blocks)
     receiving_blocks: HashMap<Hash, BlockAssembly>,
-    /// Hashes already handed to the node. Later parity or duplicate chunks must not queue again.
-    assembled_blocks: std::collections::HashSet<Hash>,
+    /// Hashes already handed to the node, with the time they were queued.
+    assembled_blocks: HashMap<Hash, Instant>,
     /// Sequence number generator
     sequence_counter: u64,
     /// Configuration
@@ -191,7 +191,13 @@ struct BlockAssembly {
     data_chunks: u32,
     received_at: Instant,
     fec_encoder: FecEncoder,
+    source: Option<SocketAddr>,
 }
+
+/// Chunks queued for the processor. A faster sender does not grow this without bound.
+const INBOUND_QUEUE: usize = 256;
+/// Assemblies one UDP source may hold at once.
+const MAX_ASSEMBLIES_PER_SOURCE: usize = 2;
 
 /// FIBRE peer information
 #[derive(Debug, Clone)]
@@ -351,32 +357,31 @@ impl UdpTransport {
     /// The channel sender is used to forward received chunks for processing
     pub fn start_receiver(
         socket: Arc<UdpSocket>,
-        chunk_tx: tokio::sync::mpsc::UnboundedSender<(SocketAddr, FecChunk)>,
+        chunk_tx: tokio::sync::mpsc::Sender<(SocketAddr, FecChunk)>,
         connections: Arc<Mutex<HashMap<SocketAddr, UdpConnection>>>,
     ) -> tokio::task::JoinHandle<()> {
         tokio::spawn(async move {
             loop {
                 match Self::recv_chunk_internal(&socket).await {
                     Ok((peer_addr, chunk)) => {
-                        // Update connection state
+                        // Update a connection we already opened. A datagram from an
+                        // unknown address must not create a map entry.
                         {
                             let mut conns = connections.lock().await;
-                            let conn = conns.entry(peer_addr).or_insert_with(|| UdpConnection {
-                                _peer_addr: peer_addr,
-                                last_seen: Instant::now(),
-                                out_sequence: 0,
-                                _in_sequence: 0,
-                                pending_chunks: HashMap::new(),
-                            });
-                            conn.last_seen = Instant::now();
-                            // Note: all chunks for one block share the same `sequence`; dedupe must
-                            // not drop later chunks (see `encode_block`). Assembly dedupes by index.
+                            if let Some(conn) = conns.get_mut(&peer_addr) {
+                                conn.last_seen = Instant::now();
+                            }
                         }
 
-                        // Forward chunk for processing
-                        if chunk_tx.send((peer_addr, chunk)).is_err() {
-                            debug!("FIBRE chunk channel closed, stopping receiver");
-                            break;
+                        match chunk_tx.try_send((peer_addr, chunk)) {
+                            Ok(()) => {}
+                            Err(tokio::sync::mpsc::error::TrySendError::Closed(_)) => {
+                                debug!("FIBRE chunk channel closed, stopping receiver");
+                                break;
+                            }
+                            Err(tokio::sync::mpsc::error::TrySendError::Full(_)) => {
+                                debug!("FIBRE inbound queue full; dropping a chunk");
+                            }
                         }
                     }
                     Err(e) => {
@@ -424,7 +429,7 @@ impl FibreRelay {
             fec_encoder: None,
             udp_transport: None,
             receiving_blocks: HashMap::new(),
-            assembled_blocks: std::collections::HashSet::new(),
+            assembled_blocks: HashMap::new(),
             sequence_counter: 0,
             config: FibreConfig::default(),
             stats: Arc::new(Mutex::new(FibreStatsInternal {
@@ -451,7 +456,7 @@ impl FibreRelay {
             fec_encoder: None,
             udp_transport: None,
             receiving_blocks: HashMap::new(),
-            assembled_blocks: std::collections::HashSet::new(),
+            assembled_blocks: HashMap::new(),
             sequence_counter: 0,
             config,
             stats: Arc::new(Mutex::new(FibreStatsInternal {
@@ -474,7 +479,7 @@ impl FibreRelay {
     pub async fn initialize_udp(
         &mut self,
         bind_addr: SocketAddr,
-    ) -> Result<tokio::sync::mpsc::UnboundedReceiver<(SocketAddr, FecChunk)>, FibreError> {
+    ) -> Result<tokio::sync::mpsc::Receiver<(SocketAddr, FecChunk)>, FibreError> {
         let config = UdpTransportConfig {
             chunk_timeout: Duration::from_secs(self.config.chunk_timeout_secs),
             max_retries: self.config.max_retries,
@@ -489,7 +494,7 @@ impl FibreRelay {
         self.udp_transport = Some(transport_arc);
 
         // Create channel for receiving chunks
-        let (chunk_tx, chunk_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (chunk_tx, chunk_rx) = tokio::sync::mpsc::channel(INBOUND_QUEUE);
 
         // Start background receiver task
         UdpTransport::start_receiver(socket.clone(), chunk_tx, connections.clone());
@@ -727,30 +732,32 @@ impl FibreRelay {
         &mut self,
         chunk: FecChunk,
     ) -> Result<Option<Block>, FibreError> {
+        self.receive_chunk(None, chunk).await
+    }
+
+    /// True when `addr` is a registered FIBRE peer. Unknown sources are not assembled.
+    pub fn accepts_udp_from(&self, addr: SocketAddr) -> bool {
+        self.fibre_peers.values().any(|peer| peer.udp_addr == Some(addr))
+    }
+
+    async fn receive_chunk(
+        &mut self,
+        source: Option<SocketAddr>,
+        chunk: FecChunk,
+    ) -> Result<Option<Block>, FibreError> {
         // Update statistics
         {
             let mut stats = self.stats.lock().await;
             stats.chunks_received += 1;
         }
-        if self.assembled_blocks.contains(&chunk.block_hash) {
-            return Ok(None);
+        if chunk.index >= chunk.total_chunks {
+            return Err(FibreError::FecError(format!(
+                "chunk index {} is outside declared total {}",
+                chunk.index, chunk.total_chunks
+            )));
         }
-        // Check max assemblies limit
-        if self.receiving_blocks.len() >= self.config.max_assemblies {
-            // Remove oldest incomplete assembly
-            let oldest = self
-                .receiving_blocks
-                .iter()
-                .min_by_key(|(_, assembly)| assembly.received_at)
-                .map(|(hash, _)| *hash);
-
-            if let Some(hash) = oldest {
-                self.receiving_blocks.remove(&hash);
-                warn!(
-                    "Removed oldest block assembly due to limit: {}",
-                    hex::encode(hash)
-                );
-            }
+        if self.assembled_blocks.contains_key(&chunk.block_hash) {
+            return Ok(None);
         }
 
         let block_hash = chunk.block_hash;
@@ -768,6 +775,21 @@ impl FibreRelay {
                 chunk.data_chunks, chunk.total_chunks
             )));
         }
+        if !self.receiving_blocks.contains_key(&block_hash) {
+            if self.receiving_blocks.len() >= self.config.max_assemblies.max(1) {
+                return Ok(None);
+            }
+            if let Some(addr) = source {
+                let from_source = self
+                    .receiving_blocks
+                    .values()
+                    .filter(|assembly| assembly.source == Some(addr))
+                    .count();
+                if from_source >= MAX_ASSEMBLIES_PER_SOURCE {
+                    return Ok(None);
+                }
+            }
+        }
 
         let shard_size = crate::wire::DEFAULT_SHARD_SIZE;
 
@@ -784,6 +806,7 @@ impl FibreRelay {
                     data_chunks: chunk.data_chunks,
                     received_at: Instant::now(),
                     fec_encoder,
+                    source,
                 });
             }
 
@@ -829,7 +852,13 @@ impl FibreRelay {
             let required_count = total_chunks as usize;
 
             for (idx, chunk) in &received_chunks {
-                shards[*idx as usize] = Some(chunk.data.clone());
+                let idx = *idx as usize;
+                if idx >= shards.len() {
+                    return Err(FibreError::FecError(format!(
+                        "chunk index {idx} is outside the assembly"
+                    )));
+                }
+                shards[idx] = Some(chunk.data.clone());
             }
 
             // Track FEC recovery if we recovered from missing chunks
@@ -871,7 +900,8 @@ impl FibreRelay {
                 hex::encode(block_hash_check)
             );
 
-            self.assembled_blocks.insert(block_hash_check);
+            self.assembled_blocks
+                .insert(block_hash_check, Instant::now());
             return Ok(Some(block));
         }
 
@@ -947,6 +977,16 @@ impl FibreRelay {
                 hex::encode(hash)
             );
         }
+
+        let old_done: Vec<Hash> = self
+            .assembled_blocks
+            .iter()
+            .filter(|(_, seen)| seen.elapsed() >= self.cache_ttl)
+            .map(|(hash, _)| *hash)
+            .collect();
+        for hash in old_done {
+            self.assembled_blocks.remove(&hash);
+        }
     }
 
     /// Get FIBRE statistics
@@ -985,14 +1025,19 @@ impl FibreRelay {
 /// This should be called after initialize_udp() to process incoming chunks
 pub fn start_chunk_processor(
     relay: Arc<Mutex<FibreRelay>>,
-    mut chunk_rx: tokio::sync::mpsc::UnboundedReceiver<(SocketAddr, FecChunk)>,
+    mut chunk_rx: tokio::sync::mpsc::Receiver<(SocketAddr, FecChunk)>,
     node_api: Arc<dyn NodeAPI>,
 ) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
         while let Some((peer_addr, chunk)) = chunk_rx.recv().await {
             let result = {
                 let mut relay_guard = relay.lock().await;
-                relay_guard.process_received_chunk(chunk).await
+                relay_guard.cleanup_expired();
+                if !relay_guard.accepts_udp_from(peer_addr) {
+                    debug!("FIBRE ignored UDP from unregistered {}", peer_addr);
+                    continue;
+                }
+                relay_guard.receive_chunk(Some(peer_addr), chunk).await
             };
 
             match result {

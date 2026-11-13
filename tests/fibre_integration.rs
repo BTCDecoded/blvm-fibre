@@ -440,6 +440,14 @@ async fn test_fibre_loopback_queues_assembled_block() {
         .await
         .unwrap();
     relay_a.register_fibre_peer("node_b".to_string(), Some(relay_b_addr));
+    let relay_a_addr = relay_a
+        .udp_local_addr()
+        .await
+        .expect("A should have UDP transport");
+    relay_b
+        .lock()
+        .await
+        .register_fibre_peer("node_a".to_string(), Some(relay_a_addr));
     let encoded = relay_a.encode_block(block).unwrap();
     relay_a.send_block("node_b", encoded).await.unwrap();
 
@@ -462,4 +470,34 @@ async fn test_fibre_loopback_queues_assembled_block() {
     assert_eq!(got[0], expected);
     let decoded: blvm_protocol::Block = bincode::deserialize(&got[0]).unwrap();
     assert_eq!(decoded.header, create_test_block().header);
+}
+
+#[tokio::test]
+async fn chunk_index_past_the_declared_count_is_an_error() {
+    let mut relay = FibreRelay::new();
+    let bad = FecChunk {
+        index: 4,
+        total_chunks: 1,
+        data_chunks: 1,
+        data: vec![0; DEFAULT_SHARD_SIZE],
+        size: DEFAULT_SHARD_SIZE,
+        block_hash: [9; 32],
+        sequence: 1,
+        magic: FIBRE_MAGIC,
+    };
+    assert!(relay.process_received_chunk(bad).await.is_err());
+    let waiting = FecChunk {
+        index: 0,
+        total_chunks: 3,
+        data_chunks: 2,
+        data: vec![0; DEFAULT_SHARD_SIZE],
+        size: DEFAULT_SHARD_SIZE,
+        block_hash: [8; 32],
+        sequence: 2,
+        magic: FIBRE_MAGIC,
+    };
+    assert!(matches!(
+        relay.process_received_chunk(waiting).await,
+        Ok(None)
+    ));
 }
