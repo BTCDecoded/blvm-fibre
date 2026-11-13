@@ -737,7 +737,9 @@ impl FibreRelay {
 
     /// True when `addr` is a registered FIBRE peer. Unknown sources are not assembled.
     pub fn accepts_udp_from(&self, addr: SocketAddr) -> bool {
-        self.fibre_peers.values().any(|peer| peer.udp_addr == Some(addr))
+        self.fibre_peers
+            .values()
+            .any(|peer| peer.udp_addr == Some(addr))
     }
 
     async fn receive_chunk(
