@@ -173,9 +173,6 @@ impl Default for FibreCapabilities {
 /// FIBRE protocol configuration
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FibreConfig {
-    /// Enable FIBRE relay
-    #[serde(default = "default_true")]
-    pub enabled: bool,
     /// FEC parity ratio (0.0-1.0, default: 0.2 = 20% parity)
     #[serde(default = "default_fec_parity_ratio")]
     pub fec_parity_ratio: f64,
@@ -190,9 +187,6 @@ pub struct FibreConfig {
     pub max_assemblies: usize,
 }
 
-fn default_true() -> bool {
-    true
-}
 fn default_fec_parity_ratio() -> f64 {
     0.2
 }
@@ -209,7 +203,6 @@ fn default_max_assemblies() -> usize {
 impl Default for FibreConfig {
     fn default() -> Self {
         Self {
-            enabled: true,
             fec_parity_ratio: 0.2,
             chunk_timeout_secs: 2,
             max_retries: 3,
@@ -294,7 +287,6 @@ mod tests {
     #[test]
     fn test_fibre_config_default() {
         let config = FibreConfig::default();
-        assert!(config.enabled);
         assert_eq!(config.fec_parity_ratio, 0.2);
         assert_eq!(config.chunk_timeout_secs, 2);
         assert_eq!(config.max_retries, 3);

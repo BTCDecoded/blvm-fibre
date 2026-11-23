@@ -85,7 +85,6 @@ async fn test_fibre_block_assembly() {
 #[tokio::test]
 async fn test_fibre_fec_recovery() {
     let config = FibreConfig {
-        enabled: true,
         fec_parity_ratio: 0.5,
         chunk_timeout_secs: 2,
         max_retries: 3,
@@ -317,7 +316,6 @@ fn test_fec_chunk_too_short() {
 #[test]
 fn test_fibre_config_edge_cases() {
     let config = FibreConfig {
-        enabled: true,
         fec_parity_ratio: 0.0,
         chunk_timeout_secs: 1,
         max_retries: 1,
@@ -326,7 +324,6 @@ fn test_fibre_config_edge_cases() {
     assert_eq!(config.fec_parity_ratio, 0.0);
 
     let config = FibreConfig {
-        enabled: true,
         fec_parity_ratio: 1.0,
         chunk_timeout_secs: 100,
         max_retries: 10,

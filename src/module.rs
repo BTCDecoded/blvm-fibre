@@ -178,8 +178,8 @@ impl FibreModule {
     fn help(&self, _ctx: &InvocationContext) -> Result<String, ModuleError> {
         Ok(
             "blvm-fibre — UDP/FEC block relay for blvm-node.\n\
-             Configure module `config.toml` / `[modules.blvm-fibre]` (FibreConfig + udp_bind or udp_follow_node_tcp_plus_one).\n\
-             Node injects MODULE_CONFIG_NODE_P2P_LISTEN_* on spawn when using udp_follow_node_tcp_plus_one (UDP = TCP+1 like in-process FIBRE).\n\
+             Configure module `config.toml` / `[modules.blvm-fibre]`.\n\
+             Omit udp_bind to listen on the node P2P port plus one (MODULE_CONFIG_NODE_P2P_LISTEN_*). A set udp_bind is that socket.\n\
              Capabilities: read_blockchain, subscribe_events, queue_inbound_block.\n\
              Optional `[[fibre_peers]]`; `register_peers_from_p2p` subscribes to CompanionUdpPeer* for NODE_FIBRE peers."
                 .to_string(),

@@ -7,7 +7,7 @@ First-party **blvm-node** module that relays **blocks** over UDP with Reed–Sol
 | Outbound | `NewBlock` / `BlockMined` → `NodeAPI::get_block` → FEC chunks to registered peers |
 | Inbound | Assembled chunk bytes → `NodeAPI::queue_received_block_bytes` |
 
-Wire types (`FecChunk`, `FibreConfig`, `FIBRE_MAGIC`, CRC32) live in `src/wire.rs`. `FibreConfig.enabled` defaults to true. After UDP bind succeeds, the module asks the node to advertise `NODE_FIBRE` (`1 << 26`). The bit stays set only while that module is still loaded. `fibre.enabled = false` never binds UDP and never sets the bit.
+Wire types (`FecChunk`, `FibreConfig`, `FIBRE_MAGIC`, CRC32) live in `src/wire.rs`. After UDP bind succeeds, the module asks the node to advertise `NODE_FIBRE` (`1 << 26`). The bit stays set only while that module is still loaded. Unload and crash leave the bit clear.
 
 Former in-process FIBRE was **removed from `blvm-node`**; use this module instead. The node still publishes a companion UDP address (peer TCP port + 1) when a remote `version` has `NODE_FIBRE`.
 
@@ -16,18 +16,14 @@ Former in-process FIBRE was **removed from `blvm-node`**; use this module instea
 In the module data directory (or node overrides under `[modules.blvm-fibre]`):
 
 ```toml
-udp_follow_node_tcp_plus_one = true
 register_peers_from_p2p = true
-
-[fibre]
-enabled = true
 
 [[fibre_peers]]
 peer_id = "relay-east"
 udp_addr = "203.0.113.10:8334"
 ```
 
-`udp_follow_node_tcp_plus_one` listens on the node P2P TCP port + 1 (`MODULE_CONFIG_NODE_P2P_LISTEN_*` is injected on spawn) and ignores `udp_bind`. Otherwise `udp_bind` defaults to `0.0.0.0:8334`. `register_peers_from_p2p` (default true) adds peers from `CompanionUdpPeerRegistered` / `Unregistered`. `[[fibre_peers]]` is the static outbound list (`peer_id`, `udp_addr`). Nested `[fibre]` is `FibreConfig` in `src/wire.rs` (`enabled`, `fec_parity_ratio`, `chunk_timeout_secs`, `max_retries`, `max_assemblies`).
+Omit `udp_bind` to listen on the node P2P address with the port plus one (`MODULE_CONFIG_NODE_P2P_LISTEN_*` is injected on spawn). Set `udp_bind` to a `host:port` to listen there. An empty `udp_bind` is an error. `register_peers_from_p2p` (default true) adds peers from `CompanionUdpPeerRegistered` / `Unregistered`. `[[fibre_peers]]` is the static outbound list (`peer_id`, `udp_addr`). Nested `[fibre]` is `FibreConfig` in `src/wire.rs` (`fec_parity_ratio`, `chunk_timeout_secs`, `max_retries`, `max_assemblies`).
 
 ## Build (monorepo)
 

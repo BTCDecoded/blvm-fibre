@@ -22,13 +22,9 @@ async fn main() -> Result<()> {
         let bootstrap = bootstrap.clone();
         let data_dir = data_dir.to_path_buf();
         async move {
+            FibreModuleConfig::reject_retired(&data_dir.join("config.toml"))
+                .map_err(blvm_node::module::traits::ModuleError::Other)?;
             let (_ctx, config) = bootstrap.context_with_config::<FibreModuleConfig>(&data_dir);
-            if !config.fibre.enabled {
-                warn!("blvm-fibre: fibre.enabled is false; UDP and FIBRE relay are off");
-                let relay = Arc::new(Mutex::new(FibreRelay::with_config(config.fibre.clone())));
-                let module = FibreModule::new(Arc::clone(&relay), false);
-                return Ok((module.clone(), module));
-            }
 
             let udp_addr = config
                 .resolve_udp_listen_addr()

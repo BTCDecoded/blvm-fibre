@@ -12,9 +12,7 @@ capabilities = [
 ]
 
 [config_schema]
-udp_bind = "UDP listen address when not using udp_follow_node_tcp_plus_one (default 0.0.0.0:8334)"
-udp_follow_node_tcp_plus_one = "If true, listen on node P2P TCP port + 1 (MODULE_CONFIG_NODE_P2P_LISTEN_* from node spawn; matches in-process FIBRE)"
-enabled = "Enable FIBRE when true (from [fibre] / FibreConfig)"
+udp_bind = "UDP listen address. Omit to listen on the node P2P port plus one. An empty value is an error"
 fibre_peers = "Optional [[fibre_peers]] tables: peer_id + udp_addr (host:port) for outbound send"
 register_peers_from_p2p = "If true, subscribe to CompanionUdpPeer* and register NODE_FIBRE peers from P2P (UDP = peer TCP port + 1)"
 
