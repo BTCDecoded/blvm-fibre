@@ -24,7 +24,11 @@ async fn main() -> Result<()> {
         async move {
             FibreModuleConfig::reject_retired(&data_dir.join("config.toml"))
                 .map_err(blvm_node::module::traits::ModuleError::Other)?;
-            let (_ctx, config) = bootstrap.context_with_config::<FibreModuleConfig>(&data_dir);
+            let (_ctx, config) = bootstrap
+                .context_with_config::<FibreModuleConfig>(&data_dir)
+                .map_err(|error| {
+                    blvm_node::module::traits::ModuleError::Other(error.to_string())
+                })?;
 
             let udp_addr = config
                 .resolve_udp_listen_addr()

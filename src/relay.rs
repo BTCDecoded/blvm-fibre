@@ -550,10 +550,10 @@ impl FibreRelay {
         block_hash.copy_from_slice(&second_hash);
 
         // Check cache
-        if let Some(encoded) = self.encoded_blocks.get(&block_hash) {
-            if encoded.encoded_at.elapsed() < self.cache_ttl {
-                return Ok(encoded.clone());
-            }
+        if let Some(encoded) = self.encoded_blocks.get(&block_hash)
+            && encoded.encoded_at.elapsed() < self.cache_ttl
+        {
+            return Ok(encoded.clone());
         }
 
         // Serialize block
@@ -566,12 +566,22 @@ impl FibreRelay {
         let parity_shards = ((data_shards as f64) * self.config.fec_parity_ratio).ceil() as usize;
         let total_shards = data_shards + parity_shards;
 
-        // Create FEC encoder if not exists or if configuration changed
-        if self.fec_encoder.is_none() {
+        // Shard counts follow this block. A reused encoder would truncate a larger one.
+        let replace_encoder = match &self.fec_encoder {
+            Some(encoder) => {
+                encoder.data_shards != data_shards
+                    || encoder.parity_shards != parity_shards
+                    || encoder.shard_size != shard_size
+            }
+            None => true,
+        };
+        if replace_encoder {
             self.fec_encoder = Some(FecEncoder::new(data_shards, parity_shards, shard_size)?);
         }
-
-        let encoder = self.fec_encoder.as_ref().unwrap();
+        let encoder = self
+            .fec_encoder
+            .as_ref()
+            .ok_or_else(|| FibreError::FecError("FEC encoder was not created".to_string()))?;
 
         // Encode with FEC
         let shards = encoder.encode(&block_data)?;
@@ -1185,6 +1195,51 @@ mod tests {
         // Should return cached version
         assert_eq!(encoded1.block_hash, encoded2.block_hash);
         assert_eq!(encoded1.chunk_count, encoded2.chunk_count);
+    }
+
+    #[test]
+    fn a_later_block_is_encoded_at_its_own_size() {
+        let mut relay = FibreRelay::new();
+        relay.encode_block(create_test_block()).unwrap();
+
+        let mut big = create_test_block();
+        big.header.nonce = 9;
+        big.transactions = vec![blvm_protocol::Transaction {
+            version: 1,
+            inputs: vec![blvm_protocol::TransactionInput {
+                prevout: blvm_protocol::OutPoint {
+                    hash: [1u8; 32],
+                    index: 0,
+                },
+                script_sig: vec![0u8; crate::wire::DEFAULT_SHARD_SIZE * 2],
+                sequence: 0xffff_ffff,
+            }]
+            .into(),
+            outputs: vec![blvm_protocol::TransactionOutput {
+                value: 1,
+                script_pubkey: vec![0x51],
+            }]
+            .into(),
+            lock_time: 0,
+        }]
+        .into();
+
+        let serialized = bincode::serialize(&big).unwrap();
+        let encoded = relay.encode_block(big).unwrap();
+        let mut payload = Vec::new();
+        for chunk in encoded.chunks.iter().take(encoded.data_chunks as usize) {
+            payload.extend_from_slice(&chunk.data);
+        }
+        assert!(
+            payload.len() >= serialized.len(),
+            "payload {} bytes, block {}",
+            payload.len(),
+            serialized.len()
+        );
+        assert_eq!(&payload[..serialized.len()], serialized.as_slice());
+        assert!(encoded.chunks.iter().all(|chunk| {
+            chunk.data_chunks == encoded.data_chunks && chunk.total_chunks == encoded.chunk_count
+        }));
     }
 
     #[test]

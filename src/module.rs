@@ -43,8 +43,9 @@ impl FibreModule {
                 return Ok(());
             }
             Err(e) => {
-                warn!("blvm-fibre: get_block {:?} ({source}): {}", block_hash, e);
-                return Ok(());
+                return Err(ModuleError::Other(format!(
+                    "blvm-fibre: get_block {block_hash:?} ({source}): {e}"
+                )));
             }
         };
 
@@ -53,8 +54,9 @@ impl FibreModule {
             match relay.encode_block(block) {
                 Ok(enc) => enc,
                 Err(e) => {
-                    warn!("blvm-fibre: encode_block ({source}): {}", e);
-                    return Ok(());
+                    return Err(ModuleError::Other(format!(
+                        "blvm-fibre: encode_block ({source}): {e}"
+                    )));
                 }
             }
         };
