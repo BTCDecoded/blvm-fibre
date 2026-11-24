@@ -2,7 +2,7 @@
 name = "blvm-fibre"
 version = "0.1.6"
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.91"
 authors = ["Bitcoin Commons Team"]
 description = "FIBRE (Fast Internet Bitcoin Relay Engine) loadable module for blvm-node"
 license = "MIT"
